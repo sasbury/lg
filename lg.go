@@ -58,6 +58,7 @@ func GetLogger(name string) Log {
 		log.name = name
 		log.debug = false
 		log.format = SimpleFormat
+		log.appender = StdErrAppender
 		loggers[name] = log
 	}
 	loggersMutex.Unlock()
