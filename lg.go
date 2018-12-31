@@ -205,3 +205,7 @@ func StdErrAppender(entry string) {
 func StdOutAppender(entry string) {
 	fmt.Fprintln(os.Stdout, entry)
 }
+
+// NullAppender simply ignores all append calls
+func NullAppender(entry string) {
+}
