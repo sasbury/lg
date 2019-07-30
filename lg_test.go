@@ -1,23 +1,11 @@
 package lg
 
 import (
-	"fmt"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
-
-type ArrayAppender struct {
-	entries []string
-}
-
-func (a *ArrayAppender) log(entry string) {
-	fmt.Printf("Logging %s\n", entry)
-	if a.entries == nil {
-		a.entries = []string{}
-	}
-	a.entries = append(a.entries, entry)
-}
 
 func TestNamedLoggers(t *testing.T) {
 	logger := GetLogger("named-logger")
