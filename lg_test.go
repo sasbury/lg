@@ -214,3 +214,39 @@ func TestDefaultLogger(t *testing.T) {
 	require.False(t, strings.Contains(a.entries[0], "red"))
 	require.False(t, strings.Contains(a.entries[0], "blue"))
 }
+
+func TestStdOutAppender(t *testing.T) { // For coverage
+	loggerName := ""
+
+	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, SimpleFormat, StdOutAppender)
+	require.NoError(t, err)
+
+	Debug("one")
+	Debugf("two %s", "formatted")
+	Print("three")
+	Printf("four %s", "formatted")
+}
+
+func TestStdErrAppender(t *testing.T) { // For coverage
+	loggerName := ""
+
+	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, SimpleFormat, StdErrAppender)
+	require.NoError(t, err)
+
+	Debug("one")
+	Debugf("two %s", "formatted")
+	Print("three")
+	Printf("four %s", "formatted")
+}
+
+func TestNullAppender(t *testing.T) { // For coverage
+	loggerName := ""
+
+	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, SimpleFormat, NullAppender)
+	require.NoError(t, err)
+
+	Debug("one")
+	Debugf("two %s", "formatted")
+	Print("three")
+	Printf("four %s", "formatted")
+}
