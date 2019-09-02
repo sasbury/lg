@@ -13,7 +13,7 @@ import (
 type Logger struct {
 	sync.RWMutex
 	debug     bool
-	debugTags map[string]bool
+	debugTags []string
 	format    LogFormatter
 	appender  LogAppender
 }
@@ -33,8 +33,18 @@ func NewLogger() *Logger {
 		format:    SimpleFormat,
 		appender:  StdErrAppender,
 		debug:     false,
-		debugTags: map[string]bool{},
+		debugTags: []string{},
 	}
+}
+
+// Write implements the Writer interface, so that a logger can be used to adapt
+// the standard go.log library. In this case you probably want to set the flags
+// to 0 for go logging, or use the minimal appender on the lg side.
+// This is equivalent to calling "Printf"
+func (l *Logger) Write(p []byte) (n int, err error) {
+	s := string(p[:])
+	l.Printf(s)
+	return len(p), nil
 }
 
 // EnableDebugMode turns on debug mode for all tags
@@ -55,7 +65,7 @@ func (l *Logger) DisableDebugMode() {
 func (l *Logger) DisableDebugModeAll() {
 	l.Lock()
 	l.debug = false
-	l.debugTags = map[string]bool{}
+	l.debugTags = []string{}
 	l.Unlock()
 }
 
@@ -71,7 +81,7 @@ func (l *Logger) IsDebugMode() bool {
 func (l *Logger) EnableDebugModeFor(tags ...string) {
 	l.Lock()
 	for _, t := range tags {
-		l.debugTags[t] = true
+		l.debugTags = append(l.debugTags, t)
 	}
 	l.Unlock()
 }
@@ -79,9 +89,18 @@ func (l *Logger) EnableDebugModeFor(tags ...string) {
 // DisableDebugModeFor turns off debug mode for one or more tags
 func (l *Logger) DisableDebugModeFor(tags ...string) {
 	l.Lock()
-	for _, t := range tags {
-		delete(l.debugTags, t)
+	tagSet := map[string]bool{}
+	for _, t := range l.debugTags {
+		tagSet[t] = true
 	}
+	for _, t := range tags {
+		delete(tagSet, t)
+	}
+	newTags := make([]string, 0, len(tagSet))
+	for t := range tagSet {
+		newTags = append(newTags, t)
+	}
+	l.debugTags = newTags
 	l.Unlock()
 }
 
@@ -90,8 +109,13 @@ func (l *Logger) IsDebugModeFor(tag string) bool {
 	l.Lock()
 	debugMode := l.debug
 	if !debugMode {
-		tf, ok := l.debugTags[tag]
-		debugMode = ok && tf
+		ld := len(l.debugTags)
+		for i := 0; i < ld; i++ {
+			if l.debugTags[i] == tag {
+				debugMode = true
+				break
+			}
+		}
 	}
 	l.Unlock()
 	return debugMode
@@ -141,10 +165,16 @@ func (l *Logger) TagDebugf(tags []string, fmt string, args ...interface{}) {
 	l.RLock()
 	debugMode := l.debug
 	if !debugMode {
-		for _, t := range tags {
-			tf, ok := l.debugTags[t]
-			if ok && tf {
-				debugMode = true
+		ld, lt := len(l.debugTags), len(tags)
+
+		for i := 0; i < ld; i++ {
+			for j := 0; j < lt; j++ {
+				if l.debugTags[i] == tags[j] {
+					debugMode = true
+					break
+				}
+			}
+			if debugMode {
 				break
 			}
 		}
