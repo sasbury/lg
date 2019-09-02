@@ -1,6 +1,7 @@
 package lg
 
 import (
+	"log"
 	"strings"
 	"testing"
 
@@ -173,6 +174,54 @@ func TestMinimalFormatDebugOn(t *testing.T) {
 	require.False(t, strings.Contains(a.Entries[3], "blue"))
 }
 
+func TestDebugStatus(t *testing.T) {
+	a := &ArrayAppender{}
+
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, a.log)
+
+	require.False(t, logger.IsDebugMode())
+	require.False(t, logger.IsDebugModeFor("red"))
+	require.False(t, logger.IsDebugModeFor("blue"))
+	require.False(t, logger.IsDebugModeFor("green"))
+
+	logger.EnableDebugModeFor("red")
+	require.False(t, logger.IsDebugMode())
+	require.True(t, logger.IsDebugModeFor("red"))
+	require.False(t, logger.IsDebugModeFor("blue"))
+	require.False(t, logger.IsDebugModeFor("green"))
+
+	logger.EnableDebugModeFor("blue")
+	require.False(t, logger.IsDebugMode())
+	require.True(t, logger.IsDebugModeFor("red"))
+	require.True(t, logger.IsDebugModeFor("blue"))
+	require.False(t, logger.IsDebugModeFor("green"))
+
+	logger.EnableDebugMode()
+	require.True(t, logger.IsDebugMode())
+	require.True(t, logger.IsDebugModeFor("red"))
+	require.True(t, logger.IsDebugModeFor("blue"))
+	require.True(t, logger.IsDebugModeFor("green"))
+
+	logger.DisableDebugMode()
+	require.False(t, logger.IsDebugMode())
+	require.True(t, logger.IsDebugModeFor("red"))
+	require.True(t, logger.IsDebugModeFor("blue"))
+	require.False(t, logger.IsDebugModeFor("green"))
+
+	logger.DisableDebugModeFor("red")
+	require.False(t, logger.IsDebugMode())
+	require.False(t, logger.IsDebugModeFor("red"))
+	require.True(t, logger.IsDebugModeFor("blue"))
+	require.False(t, logger.IsDebugModeFor("green"))
+
+	logger.DisableDebugModeAll()
+	require.False(t, logger.IsDebugMode())
+	require.False(t, logger.IsDebugModeFor("red"))
+	require.False(t, logger.IsDebugModeFor("blue"))
+	require.False(t, logger.IsDebugModeFor("green"))
+}
+
 func TestDebugFlags(t *testing.T) {
 	a := &ArrayAppender{}
 
@@ -263,7 +312,37 @@ func TestNullAppender(t *testing.T) { // For coverage
 	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
 }
 
+func TestWriterImplementation(t *testing.T) {
+	a := &ArrayAppender{}
+
+	logger := NewLogger()
+	logger.Configure(FullFormat, a.log)
+
+	l, err := logger.Write([]byte("one formatted"))
+	require.NoError(t, err)
+	require.Len(t, "one formatted", l)
+	l, err = logger.Write([]byte("two formatted"))
+	require.NoError(t, err)
+	require.Len(t, "two formatted", l)
+
+	// Test adapted log framework
+	stdLogger := log.New(logger, "", 0)
+	stdLogger.Print("three formatted")
+	stdLogger.Printf("four %s", "formatted")
+
+	require.Equal(t, 4, len(a.Entries))
+	require.True(t, strings.Contains(a.Entries[0], "one formatted"))
+	require.True(t, strings.Contains(a.Entries[1], "two formatted"))
+	require.True(t, strings.Contains(a.Entries[2], "three formatted"))
+	require.True(t, strings.Contains(a.Entries[3], "four formatted"))
+	require.True(t, strings.Contains(a.Entries[0], "[INF]"))
+	require.True(t, strings.Contains(a.Entries[1], "[INF]"))
+	require.True(t, strings.Contains(a.Entries[2], "[INF]"))
+	require.True(t, strings.Contains(a.Entries[3], "[INF]"))
+}
+
 func BenchmarkDebugWithDebugOff(b *testing.B) {
+	b.ReportAllocs()
 	logger := NewLogger()
 	logger.Configure(MinimalFormat, NullAppender)
 
@@ -272,7 +351,19 @@ func BenchmarkDebugWithDebugOff(b *testing.B) {
 	}
 }
 
+func BenchmarkDebugWithDebugOffWithTags(b *testing.B) {
+	b.ReportAllocs()
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, NullAppender)
+
+	tags := []string{"red", "blue"}
+	for n := 0; n < b.N; n++ {
+		logger.TagDebugf(tags, "one %s", "formatted")
+	}
+}
+
 func BenchmarkDebugWithDebugOn(b *testing.B) {
+	b.ReportAllocs()
 	logger := NewLogger()
 	logger.Configure(MinimalFormat, NullAppender)
 	logger.EnableDebugMode()
@@ -282,10 +373,35 @@ func BenchmarkDebugWithDebugOn(b *testing.B) {
 	}
 }
 
-func BenchmarkTagDebugWithDebugOff(b *testing.B) {
+func BenchmarkTagDebugFirst(b *testing.B) {
+	b.ReportAllocs()
 	logger := NewLogger()
 	logger.Configure(MinimalFormat, NullAppender)
-	logger.EnableDebugModeFor("red")
+	logger.EnableDebugModeFor("red", "green", "blue")
+	tags := []string{"red"}
+
+	for n := 0; n < b.N; n++ {
+		logger.TagDebugf(tags, "one %s", "formatted")
+	}
+}
+
+func BenchmarkTagDebugSecond(b *testing.B) {
+	b.ReportAllocs()
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, NullAppender)
+	logger.EnableDebugModeFor("blue", "red", "green")
+	tags := []string{"red"}
+
+	for n := 0; n < b.N; n++ {
+		logger.TagDebugf(tags, "one %s", "formatted")
+	}
+}
+
+func BenchmarkTagDebugThird(b *testing.B) {
+	b.ReportAllocs()
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, NullAppender)
+	logger.EnableDebugModeFor("green", "blue", "red")
 	tags := []string{"red"}
 
 	for n := 0; n < b.N; n++ {
@@ -294,6 +410,7 @@ func BenchmarkTagDebugWithDebugOff(b *testing.B) {
 }
 
 func BenchmarkTagDebugWithDebugOn(b *testing.B) {
+	b.ReportAllocs()
 	logger := NewLogger()
 	logger.Configure(MinimalFormat, NullAppender)
 	logger.EnableDebugModeFor("red")
