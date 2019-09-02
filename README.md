@@ -1,45 +1,62 @@
 lg
 ================
 
-[![Build Status](https://travis-ci.org/sasbury/lg.svg?branch=master)](https://travis-ci.org/sasbury/lg) [![GoDoc](https://godoc.org/github.com/sasbury/lg?status.svg)](https://godoc.org/github.com/sasbury/lg)
+[![Build Status](https://travis-ci.org/sasbury/lg.svg?branch=master)](https://travis-ci.org/sasbury/lg) [![GoDoc](https://godoc.org/github.com/sasbury/lg?status.svg)](https://godoc.org/github.com/sasbury/lg)[![Go Report Card](https://goreportcard.com/badge/github.com/sasbury/lg)](https://goreportcard.com/report/github.com/sasbury/lg)
 
-lg is a simple logging library loosely based on [Dave Cheney's Blog Post](https://dave.cheney.net/2015/11/05/lets-talk-about-logging) a few years ago. The fundamental idea is that most applications only need two log levels: info and debug.
+lg is a simple logging library loosely based on [Dave Cheney's Blog Post](https://dave.cheney.net/2015/11/05/lets-talk-about-logging) a few years ago. The fundamental idea is that most applications only need two log levels: info and debug. I have added the idea of tags which can be used to enable and disable debug mode on a finer grain.
 
-Logging in lg is organized around the idea of a logger. Loggers are named, and a default logger is available:
+Logging in lg is organized around the idea of a logger, string tags, a formatter function and an appender function.
 
 ```go
-logger := lg.GetLogger("my-logger")
-logger2 := lg.DefaultLogger()
+logger := lg.NewLogger()
 ```
-
-Using an empty string, "", for the name will result in the default logger.
 
 Once you have a logger, you can simply print or debug with it:
 
 ```go
-logger.Debug("one")
 logger.Debugf("two %s", "formatted")
-logger.Print("three")
 logger.Printf("four %s", "formatted")
 ```
 
-When calling debug, the formatting will happen after a debug flag is checked.
+Loggers are thread safe. But they do not protect their appender, see below, with their lock.
 
-Loggers can be configured using a single function:
+When calling debug, the formatting will happen after a debug flag is checked so there is no price for formatting or getting the time if the debug flag is false.
+
+Debugging can be enabled for the entire logger:
 
 ```go
-lg.ConfigLogger(loggerName, false, []string{"red", "blue"}, lg.SimpleFormat, lg.StdErrAppender)
+logger.EnableDebugMode()
+logger.DisableDebugMode()
+
 ```
 
-config logger takes 5 arguments:
+Debugging can also be enabled for specific tags:
 
-* The name of the logger to configure
-* Whether or not to enable debug logging
-* An array of tags, these may or may not be displayed depending on the format.
-* A format function of the form `type LogFormatter func(debug bool, tags []string, t time.Time, fmt string, args ...interface{}) string`
-* A logging appender function of the form `type LogAppender func(entry string)`
+```go
+logger.EnableDebugModeFor("red")
+logger.DisableDebugModeFor("red")
+```
 
-Tags can be used to help searching based on the logger output.
+And you can turn off debugging for everything in one swoop:
+
+```go
+logger.DisableDebugModeAll()
+```
+
+Using tags for debugging does add a small price, if the global flag is true, this price is minimal, but if the global flag is false the library checks all the tags, until one is found with debugging enabled or the list is exhausted.
+
+Loggers default to std err and the simple formatter. You can customize this with the Configure function:
+
+```go
+logger.Configure(lg.MinimalFormat, lg.StdErrAppender)
+```
+
+Custom formatters and appenders are supported:
+
+```go
+type LogFormatter func(debug bool, tags []string, t time.Time, fmt string, args ...interface{}) string
+type LogAppender func(entry string)
+```
 
 The current release contains several formatters:
 

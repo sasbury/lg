@@ -7,246 +7,299 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNamedLoggers(t *testing.T) {
-	logger := GetLogger("named-logger")
-	logger2 := GetLogger("named-logger")
-
-	require.True(t, logger == logger2, "named loggers should be the same")
-}
-
-func TestDefaultName(t *testing.T) {
-	logger := GetLogger("")
-	logger2 := DefaultLogger()
-	require.True(t, logger == logger2, "empty string should go to default logger")
-}
-
 func TestFullFormatDebugOff(t *testing.T) {
-	loggerName := "test-full-format-off"
 	a := &ArrayAppender{}
 
-	err := ConfigLogger(loggerName, false, []string{"red", "blue"}, FullFormat, a.log)
-	require.NoError(t, err)
+	logger := NewLogger()
+	logger.Configure(FullFormat, a.log)
 
-	logger := GetLogger(loggerName)
+	logger.Debugf("one %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.Printf("three %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
 
-	logger.Debug("one")
-	logger.Debugf("two %s", "formatted")
-	logger.Print("three")
-	logger.Printf("four %s", "formatted")
+	require.Equal(t, 2, len(a.Entries))
+	require.True(t, strings.Contains(a.Entries[0], "three formatted"))
+	require.True(t, strings.Contains(a.Entries[1], "four formatted"))
+	require.True(t, strings.Contains(a.Entries[0], "[INF]"))
+	require.True(t, strings.Contains(a.Entries[1], "[INF]"))
 
-	require.Equal(t, 2, len(a.entries))
-	require.True(t, strings.Contains(a.entries[0], "three"))
-	require.True(t, strings.Contains(a.entries[0], "[INF]"))
-	require.True(t, strings.Contains(a.entries[1], "four formatted"))
-
-	require.True(t, strings.Contains(a.entries[0], "red"))
-	require.True(t, strings.Contains(a.entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[0], "red"))
+	require.False(t, strings.Contains(a.Entries[0], "blue"))
+	require.True(t, strings.Contains(a.Entries[1], "red"))
+	require.True(t, strings.Contains(a.Entries[1], "blue"))
 }
 
 func TestFullFormatDebugOn(t *testing.T) {
-	loggerName := "test-full-format-on"
 	a := &ArrayAppender{}
 
-	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, FullFormat, a.log)
-	require.NoError(t, err)
+	logger := NewLogger()
+	logger.Configure(FullFormat, a.log)
+	logger.EnableDebugMode()
 
-	logger := GetLogger(loggerName)
+	logger.Debugf("one %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.Printf("three %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
 
-	logger.Debug("one")
-	logger.Debugf("two %s", "formatted")
-	logger.Print("three")
-	logger.Printf("four %s", "formatted")
+	require.Equal(t, 4, len(a.Entries))
+	require.True(t, strings.Contains(a.Entries[0], "one formatted"))
+	require.True(t, strings.Contains(a.Entries[1], "two formatted"))
+	require.True(t, strings.Contains(a.Entries[2], "three formatted"))
+	require.True(t, strings.Contains(a.Entries[3], "four formatted"))
+	require.True(t, strings.Contains(a.Entries[0], "[DBG]"))
+	require.True(t, strings.Contains(a.Entries[1], "[DBG]"))
+	require.True(t, strings.Contains(a.Entries[2], "[INF]"))
+	require.True(t, strings.Contains(a.Entries[3], "[INF]"))
 
-	require.Equal(t, 4, len(a.entries))
-	require.True(t, strings.Contains(a.entries[0], "one"))
-	require.True(t, strings.Contains(a.entries[0], "[DBG]"))
-	require.True(t, strings.Contains(a.entries[1], "two formatted"))
-	require.True(t, strings.Contains(a.entries[2], "three"))
-	require.True(t, strings.Contains(a.entries[2], "[INF]"))
-	require.True(t, strings.Contains(a.entries[3], "four formatted"))
-
-	require.True(t, strings.Contains(a.entries[0], "red"))
-	require.True(t, strings.Contains(a.entries[0], "blue"))
-}
-
-func TestFullFormatNoTags(t *testing.T) {
-	loggerName := "test-full-format-notags"
-	a := &ArrayAppender{}
-
-	err := ConfigLogger(loggerName, true, nil, FullFormat, a.log)
-	require.NoError(t, err)
-
-	logger := GetLogger(loggerName)
-
-	logger.Debug("one")
-	logger.Debugf("two %s", "formatted")
-	logger.Print("three")
-	logger.Printf("four %s", "formatted")
-
-	require.Equal(t, 4, len(a.entries))
-	require.True(t, strings.Contains(a.entries[0], "one"))
-	require.True(t, strings.Contains(a.entries[0], "[DBG]"))
-	require.True(t, strings.Contains(a.entries[3], "four formatted"))
-	require.True(t, strings.Contains(a.entries[3], "[INF]"))
-
-	require.False(t, strings.Contains(a.entries[0], "red"))
-	require.False(t, strings.Contains(a.entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[0], "red"))
+	require.False(t, strings.Contains(a.Entries[0], "blue"))
+	require.True(t, strings.Contains(a.Entries[1], "red"))
+	require.True(t, strings.Contains(a.Entries[1], "blue"))
+	require.False(t, strings.Contains(a.Entries[2], "red"))
+	require.False(t, strings.Contains(a.Entries[2], "blue"))
+	require.True(t, strings.Contains(a.Entries[3], "red"))
+	require.True(t, strings.Contains(a.Entries[3], "blue"))
 }
 
 func TestSimpleFormatDebugOff(t *testing.T) {
-	loggerName := "test-simple-format-off"
 	a := &ArrayAppender{}
 
-	err := ConfigLogger(loggerName, false, []string{"red", "blue"}, SimpleFormat, a.log)
-	require.NoError(t, err)
+	logger := NewLogger()
+	logger.Configure(SimpleFormat, a.log)
 
-	logger := GetLogger(loggerName)
+	logger.Debugf("one %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.Printf("three %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
 
-	logger.Debug("one")
-	logger.Debugf("two %s", "formatted")
-	logger.Print("three")
-	logger.Printf("four %s", "formatted")
+	require.Equal(t, 2, len(a.Entries))
+	require.True(t, strings.Contains(a.Entries[0], "three formatted"))
+	require.True(t, strings.Contains(a.Entries[1], "four formatted"))
+	require.True(t, strings.Contains(a.Entries[0], "[INF]"))
+	require.True(t, strings.Contains(a.Entries[1], "[INF]"))
 
-	require.Equal(t, 2, len(a.entries))
-	require.True(t, strings.Contains(a.entries[0], "three"))
-	require.True(t, strings.Contains(a.entries[0], "[INF]"))
-	require.True(t, strings.Contains(a.entries[1], "four formatted"))
-
-	require.False(t, strings.Contains(a.entries[0], "red"))
-	require.False(t, strings.Contains(a.entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[0], "red"))
+	require.False(t, strings.Contains(a.Entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[1], "red"))
+	require.False(t, strings.Contains(a.Entries[1], "blue"))
 }
 
 func TestSimpleFormatDebugOn(t *testing.T) {
-	loggerName := "test-simple-format-on"
 	a := &ArrayAppender{}
 
-	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, SimpleFormat, a.log)
-	require.NoError(t, err)
+	logger := NewLogger()
+	logger.Configure(SimpleFormat, a.log)
+	logger.EnableDebugMode()
 
-	logger := GetLogger(loggerName)
+	logger.Debugf("one %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.Printf("three %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
 
-	logger.Debug("one")
-	logger.Debugf("two %s", "formatted")
-	logger.Print("three")
-	logger.Printf("four %s", "formatted")
+	require.Equal(t, 4, len(a.Entries))
+	require.True(t, strings.Contains(a.Entries[0], "one formatted"))
+	require.True(t, strings.Contains(a.Entries[1], "two formatted"))
+	require.True(t, strings.Contains(a.Entries[2], "three formatted"))
+	require.True(t, strings.Contains(a.Entries[3], "four formatted"))
+	require.True(t, strings.Contains(a.Entries[0], "[DBG]"))
+	require.True(t, strings.Contains(a.Entries[1], "[DBG]"))
+	require.True(t, strings.Contains(a.Entries[2], "[INF]"))
+	require.True(t, strings.Contains(a.Entries[3], "[INF]"))
 
-	require.Equal(t, 4, len(a.entries))
-	require.True(t, strings.Contains(a.entries[0], "one"))
-	require.True(t, strings.Contains(a.entries[0], "[DBG]"))
-	require.True(t, strings.Contains(a.entries[1], "two formatted"))
-	require.True(t, strings.Contains(a.entries[2], "three"))
-	require.True(t, strings.Contains(a.entries[2], "[INF]"))
-	require.True(t, strings.Contains(a.entries[3], "four formatted"))
-
-	require.False(t, strings.Contains(a.entries[0], "red"))
-	require.False(t, strings.Contains(a.entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[0], "red"))
+	require.False(t, strings.Contains(a.Entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[1], "red"))
+	require.False(t, strings.Contains(a.Entries[1], "blue"))
+	require.False(t, strings.Contains(a.Entries[2], "red"))
+	require.False(t, strings.Contains(a.Entries[2], "blue"))
+	require.False(t, strings.Contains(a.Entries[3], "red"))
+	require.False(t, strings.Contains(a.Entries[3], "blue"))
 }
 
 func TestMinimalFormatDebugOff(t *testing.T) {
-	loggerName := "test-minimal-format-off"
 	a := &ArrayAppender{}
 
-	err := ConfigLogger(loggerName, false, []string{"red", "blue"}, MinimalFormat, a.log)
-	require.NoError(t, err)
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, a.log)
 
-	logger := GetLogger(loggerName)
+	logger.Debugf("one %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.Printf("three %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
 
-	logger.Debug("one")
-	logger.Debugf("two %s", "formatted")
-	logger.Print("three")
-	logger.Printf("four %s", "formatted")
+	require.Equal(t, 2, len(a.Entries))
+	require.True(t, strings.Contains(a.Entries[0], "three formatted"))
+	require.True(t, strings.Contains(a.Entries[1], "four formatted"))
+	require.False(t, strings.Contains(a.Entries[0], "[INF]"))
+	require.False(t, strings.Contains(a.Entries[1], "[INF]"))
 
-	require.Equal(t, 2, len(a.entries))
-	require.True(t, strings.Contains(a.entries[0], "three"))
-	require.False(t, strings.Contains(a.entries[0], "[INF]")) // no debug flag in minimal
-	require.True(t, strings.Contains(a.entries[1], "four formatted"))
-
-	require.False(t, strings.Contains(a.entries[0], "red"))
-	require.False(t, strings.Contains(a.entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[0], "[INF]"))
+	require.False(t, strings.Contains(a.Entries[0], "red"))
+	require.False(t, strings.Contains(a.Entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[1], "red"))
+	require.False(t, strings.Contains(a.Entries[1], "blue"))
 }
 
 func TestMinimalFormatDebugOn(t *testing.T) {
-	loggerName := "test-minimal-format-on"
 	a := &ArrayAppender{}
 
-	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, MinimalFormat, a.log)
-	require.NoError(t, err)
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, a.log)
+	logger.EnableDebugMode()
 
-	logger := GetLogger(loggerName)
+	logger.Debugf("one %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.Printf("three %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
 
-	logger.Debug("one")
-	logger.Debugf("two %s", "formatted")
-	logger.Print("three")
-	logger.Printf("four %s", "formatted")
+	require.Equal(t, 4, len(a.Entries))
+	require.True(t, strings.Contains(a.Entries[0], "one formatted"))
+	require.True(t, strings.Contains(a.Entries[1], "two formatted"))
+	require.True(t, strings.Contains(a.Entries[2], "three formatted"))
+	require.True(t, strings.Contains(a.Entries[3], "four formatted"))
+	require.False(t, strings.Contains(a.Entries[0], "[DBG]"))
+	require.False(t, strings.Contains(a.Entries[1], "[DBG]"))
+	require.False(t, strings.Contains(a.Entries[2], "[INF]"))
+	require.False(t, strings.Contains(a.Entries[3], "[INF]"))
 
-	require.Equal(t, 4, len(a.entries))
-	require.True(t, strings.Contains(a.entries[0], "one"))
-	require.False(t, strings.Contains(a.entries[0], "[DBG]")) // no debug flag in minimal
-	require.True(t, strings.Contains(a.entries[1], "two formatted"))
-	require.True(t, strings.Contains(a.entries[2], "three"))
-	require.False(t, strings.Contains(a.entries[2], "[INF]")) // no debug flag in minimal
-	require.True(t, strings.Contains(a.entries[3], "four formatted"))
-
-	require.False(t, strings.Contains(a.entries[0], "red"))
-	require.False(t, strings.Contains(a.entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[0], "red"))
+	require.False(t, strings.Contains(a.Entries[0], "blue"))
+	require.False(t, strings.Contains(a.Entries[1], "red"))
+	require.False(t, strings.Contains(a.Entries[1], "blue"))
+	require.False(t, strings.Contains(a.Entries[2], "red"))
+	require.False(t, strings.Contains(a.Entries[2], "blue"))
+	require.False(t, strings.Contains(a.Entries[3], "red"))
+	require.False(t, strings.Contains(a.Entries[3], "blue"))
 }
 
-func TestDefaultLogger(t *testing.T) {
-	loggerName := ""
+func TestDebugFlags(t *testing.T) {
 	a := &ArrayAppender{}
 
-	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, SimpleFormat, a.log)
-	require.NoError(t, err)
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, a.log)
 
-	Debug("one")
-	Debugf("two %s", "formatted")
-	Print("three")
-	Printf("four %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	require.Equal(t, 0, len(a.Entries))
 
-	require.Equal(t, 4, len(a.entries))
-	require.True(t, strings.Contains(a.entries[0], "one"))
-	require.True(t, strings.Contains(a.entries[0], "[DBG]"))
-	require.True(t, strings.Contains(a.entries[1], "two formatted"))
-	require.True(t, strings.Contains(a.entries[2], "three"))
-	require.True(t, strings.Contains(a.entries[2], "[INF]"))
-	require.True(t, strings.Contains(a.entries[3], "four formatted"))
+	logger.EnableDebugMode()
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	require.Equal(t, 1, len(a.Entries))
+	require.True(t, logger.IsDebugMode())
+	require.True(t, logger.IsDebugModeFor("red"))
 
-	require.False(t, strings.Contains(a.entries[0], "red"))
-	require.False(t, strings.Contains(a.entries[0], "blue"))
+	logger.DisableDebugMode()
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	require.Equal(t, 1, len(a.Entries))
+	require.False(t, logger.IsDebugMode())
+	require.False(t, logger.IsDebugModeFor("red"))
+
+	logger.EnableDebugModeFor("red")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	require.Equal(t, 2, len(a.Entries))
+	require.False(t, logger.IsDebugMode())
+	require.True(t, logger.IsDebugModeFor("red"))
+
+	logger.DisableDebugModeFor("red")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	require.Equal(t, 2, len(a.Entries))
+	require.False(t, logger.IsDebugMode())
+	require.False(t, logger.IsDebugModeFor("red"))
+
+	logger.EnableDebugModeFor("green")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	require.Equal(t, 2, len(a.Entries))
+	require.False(t, logger.IsDebugMode())
+	require.True(t, logger.IsDebugModeFor("green"))
+
+	logger.EnableDebugModeFor("blue")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.TagDebugf([]string{"yellow"}, "two %s", "formatted") // shouldn't be logged
+	require.Equal(t, 3, len(a.Entries))
+
+	logger.EnableDebugMode()
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.TagDebugf([]string{"yellow"}, "two %s", "formatted") // should log with global flag
+	require.Equal(t, 5, len(a.Entries))
+
+	logger.DisableDebugMode()
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.TagDebugf([]string{"yellow"}, "two %s", "formatted") // should no longer log with global flag
+	require.Equal(t, 6, len(a.Entries))
+
+	logger.DisableDebugModeAll()
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.TagDebugf([]string{"yellow"}, "two %s", "formatted")
+	require.Equal(t, 6, len(a.Entries))
 }
 
 func TestStdOutAppender(t *testing.T) { // For coverage
-	loggerName := ""
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, StdOutAppender)
 
-	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, SimpleFormat, StdOutAppender)
-	require.NoError(t, err)
-
-	Debug("one")
-	Debugf("two %s", "formatted")
-	Print("three")
-	Printf("four %s", "formatted")
+	logger.Debugf("one %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.Printf("three %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
 }
 
 func TestStdErrAppender(t *testing.T) { // For coverage
-	loggerName := ""
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, StdErrAppender)
 
-	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, SimpleFormat, StdErrAppender)
-	require.NoError(t, err)
-
-	Debug("one")
-	Debugf("two %s", "formatted")
-	Print("three")
-	Printf("four %s", "formatted")
+	logger.Debugf("one %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.Printf("three %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
 }
 
 func TestNullAppender(t *testing.T) { // For coverage
-	loggerName := ""
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, NullAppender)
 
-	err := ConfigLogger(loggerName, true, []string{"red", "blue"}, SimpleFormat, NullAppender)
-	require.NoError(t, err)
+	logger.Debugf("one %s", "formatted")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.Printf("three %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
+}
 
-	Debug("one")
-	Debugf("two %s", "formatted")
-	Print("three")
-	Printf("four %s", "formatted")
+func BenchmarkDebugWithDebugOff(b *testing.B) {
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, NullAppender)
+
+	for n := 0; n < b.N; n++ {
+		logger.Debugf("one %s", "formatted")
+	}
+}
+
+func BenchmarkDebugWithDebugOn(b *testing.B) {
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, NullAppender)
+	logger.EnableDebugMode()
+
+	for n := 0; n < b.N; n++ {
+		logger.Debugf("one %s", "formatted")
+	}
+}
+
+func BenchmarkTagDebugWithDebugOff(b *testing.B) {
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, NullAppender)
+	logger.EnableDebugModeFor("red")
+	tags := []string{"red"}
+
+	for n := 0; n < b.N; n++ {
+		logger.TagDebugf(tags, "one %s", "formatted")
+	}
+}
+
+func BenchmarkTagDebugWithDebugOn(b *testing.B) {
+	logger := NewLogger()
+	logger.Configure(MinimalFormat, NullAppender)
+	logger.EnableDebugModeFor("red")
+	tags := []string{"red"}
+
+	for n := 0; n < b.N; n++ {
+		logger.TagDebugf(tags, "one %s", "formatted")
+	}
 }
