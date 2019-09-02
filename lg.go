@@ -8,170 +8,171 @@ import (
 	"time"
 )
 
-// Log is the interface for the objects that are the target of logging messages. Logging methods
-// imply a level. For example, Info() implies a level of LogLevel.INFO.
-type Log interface {
-	Printf(fmt string, args ...interface{})
-	Print(args ...interface{})
-
-	Debugf(fmt string, args ...interface{})
-	Debug(args ...interface{})
+// Logger provides a minimal configuration and methods to print and debug, with or without tags.
+// Debugging can be configured at the tag level or for the entire logger.
+type Logger struct {
+	sync.RWMutex
+	debug     bool
+	debugTags map[string]bool
+	format    LogFormatter
+	appender  LogAppender
 }
 
 // LogFormatter is used to convert a logmessage to a string for printing
+// The logger's lock will be used to protect the formatter
 type LogFormatter func(debug bool, tags []string, t time.Time, fmt string, args ...interface{}) string
 
 // LogAppender is used to write the log message to a destination
 // A new line is not assumed in the entry and should be added by the appender if appropriate
+// The logger's lock will not be used protect the appender
 type LogAppender func(entry string)
 
-var loggers = make(map[string]*logger)
-var loggersMutex = sync.RWMutex{}
-
-type logger struct {
-	sync.RWMutex
-	name     string
-	debug    bool
-	format   LogFormatter
-	tags     []string
-	appender LogAppender
+// NewLogger creates and returns a new logger
+func NewLogger() *Logger {
+	return &Logger{
+		format:    SimpleFormat,
+		appender:  StdErrAppender,
+		debug:     false,
+		debugTags: map[string]bool{},
+	}
 }
 
-// DefaultLogger returns a logger that can be used when a named logger isn't required.
-func DefaultLogger() Log {
-	return GetLogger("_default")
+// EnableDebugMode turns on debug mode for all tags
+func (l *Logger) EnableDebugMode() {
+	l.Lock()
+	l.debug = true
+	l.Unlock()
 }
 
-// GetLogger returns a named logger, creating it if necessary.
-// Use ConfigLogger to assign settings
-func GetLogger(name string) Log {
-	loggersMutex.Lock()
-
-	if name == "" {
-		name = "_default"
-	}
-
-	log := loggers[name]
-
-	if log == nil {
-		log = &logger{}
-		log.name = name
-		log.debug = false
-		log.format = SimpleFormat
-		log.appender = StdErrAppender
-		loggers[name] = log
-	}
-	loggersMutex.Unlock()
-
-	return log
+// DisableDebugMode turns off the debug flag, individual tags may still have debug mode on
+func (l *Logger) DisableDebugMode() {
+	l.Lock()
+	l.debug = false
+	l.Unlock()
 }
 
-// ConfigLogger creates and/or configures the underlying logger
-// An empty name will target the default logger
-func ConfigLogger(name string, debug bool, tags []string, formatter LogFormatter, appender LogAppender) error {
-	loggersMutex.Lock()
+// DisableDebugModeAll turns off the debug flag, and removes any debug flags
+func (l *Logger) DisableDebugModeAll() {
+	l.Lock()
+	l.debug = false
+	l.debugTags = map[string]bool{}
+	l.Unlock()
+}
 
-	if name == "" {
-		name = "_default"
+// IsDebugMode returns true if the debug flag is on
+func (l *Logger) IsDebugMode() bool {
+	l.Lock()
+	debugMode := l.debug
+	l.Unlock()
+	return debugMode
+}
+
+// EnableDebugModeFor turn on debug mode for one or more tags
+func (l *Logger) EnableDebugModeFor(tags ...string) {
+	l.Lock()
+	for _, t := range tags {
+		l.debugTags[t] = true
 	}
+	l.Unlock()
+}
 
-	log := loggers[name]
-
-	if log == nil {
-		log = &logger{}
-		log.name = name
-		log.debug = false
-		loggers[name] = log
+// DisableDebugModeFor turns off debug mode for one or more tags
+func (l *Logger) DisableDebugModeFor(tags ...string) {
+	l.Lock()
+	for _, t := range tags {
+		delete(l.debugTags, t)
 	}
-	loggersMutex.Unlock()
+	l.Unlock()
+}
 
-	log.Lock()
-	defer log.Unlock()
-	log.debug = debug
-	log.tags = tags
-	log.format = formatter
-	log.appender = appender
+// IsDebugModeFor returns true if the debug flag is on for a specific tag
+func (l *Logger) IsDebugModeFor(tag string) bool {
+	l.Lock()
+	debugMode := l.debug
+	if !debugMode {
+		tf, ok := l.debugTags[tag]
+		debugMode = ok && tf
+	}
+	l.Unlock()
+	return debugMode
+}
 
-	return nil
+// Configure set the formatter and appender
+func (l *Logger) Configure(formatter LogFormatter, appender LogAppender) {
+	l.Lock()
+	l.format = formatter
+	l.appender = appender
+	l.Unlock()
 }
 
 //Printf used for most logging, prints the formatted string with the configured formatter
-func (l *logger) Printf(fmt string, args ...interface{}) {
+func (l *Logger) Printf(fmt string, args ...interface{}) {
 	l.RLock()
-	defer l.RUnlock()
-	entry := l.format(false, l.tags, time.Now(), fmt, args...)
-	l.appender(entry)
-}
-
-//Print prints the formatted string with the configured formatter
-func (l *logger) Print(args ...interface{}) {
-	l.RLock()
-	defer l.RUnlock()
-	entry := l.format(false, l.tags, time.Now(), fmt.Sprint(args...))
-	l.appender(entry)
+	entry := l.format(false, nil, time.Now(), fmt, args...)
+	app := l.appender
+	l.RUnlock()
+	app(entry)
 }
 
 //Debugf prints the formatted string with the configured formatter, if debug is on
-func (l *logger) Debugf(fmt string, args ...interface{}) {
+func (l *Logger) Debugf(fmt string, args ...interface{}) {
 	l.RLock()
-	defer l.RUnlock()
-
 	if !l.debug {
+		l.RUnlock()
 		return
 	}
-	entry := l.format(true, l.tags, time.Now(), fmt, args...)
-	l.appender(entry)
+	entry := l.format(true, nil, time.Now(), fmt, args...)
+	app := l.appender
+	l.RUnlock()
+	app(entry)
 }
 
-//Debug prints the formatted string with the configured formatter, if debug is on
-func (l *logger) Debug(args ...interface{}) {
+//TagPrintf used for most logging, prints the formatted string with the configured formatter
+func (l *Logger) TagPrintf(tags []string, fmt string, args ...interface{}) {
 	l.RLock()
-	defer l.RUnlock()
+	entry := l.format(false, tags, time.Now(), fmt, args...)
+	app := l.appender
+	l.RUnlock()
+	app(entry)
+}
 
-	if !l.debug {
+//TagDebugf prints the formatted string with the configured formatter, if debug mode is on for any of the tags
+func (l *Logger) TagDebugf(tags []string, fmt string, args ...interface{}) {
+	l.RLock()
+	debugMode := l.debug
+	if !debugMode {
+		for _, t := range tags {
+			tf, ok := l.debugTags[t]
+			if ok && tf {
+				debugMode = true
+				break
+			}
+		}
+	}
+	if !debugMode {
+		l.RUnlock()
 		return
 	}
-	entry := l.format(true, l.tags, time.Now(), fmt.Sprint(args...))
-	l.appender(entry)
-}
-
-// Printf using the default logger
-func Printf(fmt string, args ...interface{}) {
-	DefaultLogger().Printf(fmt, args...)
-}
-
-// Print using the default logger
-func Print(args ...interface{}) {
-	DefaultLogger().Print(args...)
-}
-
-// Debugf using the default logger
-func Debugf(fmt string, args ...interface{}) {
-	DefaultLogger().Debugf(fmt, args...)
-}
-
-// Debug using the default logger
-func Debug(args ...interface{}) {
-	DefaultLogger().Debug(args...)
+	entry := l.format(true, tags, time.Now(), fmt, args...)
+	app := l.appender
+	l.RUnlock()
+	app(entry)
 }
 
 // FullFormat includes everything
 func FullFormat(debug bool, tags []string, t time.Time, format string, args ...interface{}) string {
 	formatStr := ""
 	timeStr := t.Format(time.StampMilli)
+	modeStr := "[INF]"
 
 	if debug {
-		if tags != nil && len(tags) > 0 {
-			formatStr = fmt.Sprintf("%s [DBG] [%s] %s", timeStr, strings.Join(tags, ", "), format)
-		} else {
-			formatStr = fmt.Sprintf("%s [DBG] %s", timeStr, format)
-		}
+		modeStr = "[DBG]"
+	}
+
+	if tags != nil && len(tags) > 0 {
+		formatStr = fmt.Sprintf("%s %s [%s] %s", timeStr, modeStr, strings.Join(tags, ", "), format)
 	} else {
-		if tags != nil && len(tags) > 0 {
-			formatStr = fmt.Sprintf("%s [INF] [%s] %s", timeStr, strings.Join(tags, ", "), format)
-		} else {
-			formatStr = fmt.Sprintf("%s [INF] %s", timeStr, format)
-		}
+		formatStr = fmt.Sprintf("%s %s %s", timeStr, modeStr, format)
 	}
 
 	return fmt.Sprintf(formatStr, args...)
@@ -181,17 +182,18 @@ func FullFormat(debug bool, tags []string, t time.Time, format string, args ...i
 func SimpleFormat(debug bool, tags []string, t time.Time, format string, args ...interface{}) string {
 	formatStr := ""
 	timeStr := t.Format(time.StampMilli)
+	modeStr := "[INF]"
 
 	if debug {
-		formatStr = fmt.Sprintf("%s [DBG] %s", timeStr, format)
-	} else {
-		formatStr = fmt.Sprintf("%s [INF] %s", timeStr, format)
+		modeStr = "[DBG]"
 	}
+
+	formatStr = fmt.Sprintf("%s %s %s", timeStr, modeStr, format)
 
 	return fmt.Sprintf(formatStr, args...)
 }
 
-// MinimalFormat just formats the message
+// MinimalFormat just formats the message, tags and time are ignored
 func MinimalFormat(debug bool, tags []string, t time.Time, format string, args ...interface{}) string {
 	return fmt.Sprintf(format, args...)
 }
@@ -210,14 +212,11 @@ func StdOutAppender(entry string) {
 func NullAppender(entry string) {
 }
 
+// ArrayAppender stores entries in an array for testing
 type ArrayAppender struct {
-	entries []string
+	Entries []string
 }
 
 func (a *ArrayAppender) log(entry string) {
-	fmt.Printf("Logging %s\n", entry)
-	if a.entries == nil {
-		a.entries = []string{}
-	}
-	a.entries = append(a.entries, entry)
+	a.Entries = append(a.Entries, entry)
 }
