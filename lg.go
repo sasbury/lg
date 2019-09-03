@@ -25,7 +25,7 @@ type LogFormatter func(debug bool, tags []string, t time.Time, fmt string, args 
 // LogAppender is used to write the log message to a destination
 // A new line is not assumed in the entry and should be added by the appender if appropriate
 // The logger's lock will not be used protect the appender
-type LogAppender func(entry string)
+type LogAppender func(entry string) error
 
 // NewLogger creates and returns a new logger
 func NewLogger() *Logger {
@@ -130,38 +130,38 @@ func (l *Logger) Configure(formatter LogFormatter, appender LogAppender) {
 }
 
 //Printf used for most logging, prints the formatted string with the configured formatter
-func (l *Logger) Printf(fmt string, args ...interface{}) {
+func (l *Logger) Printf(fmt string, args ...interface{}) error {
 	l.RLock()
 	entry := l.format(false, nil, time.Now(), fmt, args...)
 	app := l.appender
 	l.RUnlock()
-	app(entry)
+	return app(entry)
 }
 
 //Debugf prints the formatted string with the configured formatter, if debug is on
-func (l *Logger) Debugf(fmt string, args ...interface{}) {
+func (l *Logger) Debugf(fmt string, args ...interface{}) error {
 	l.RLock()
 	if !l.debug {
 		l.RUnlock()
-		return
+		return nil
 	}
 	entry := l.format(true, nil, time.Now(), fmt, args...)
 	app := l.appender
 	l.RUnlock()
-	app(entry)
+	return app(entry)
 }
 
 //TagPrintf used for most logging, prints the formatted string with the configured formatter
-func (l *Logger) TagPrintf(tags []string, fmt string, args ...interface{}) {
+func (l *Logger) TagPrintf(tags []string, fmt string, args ...interface{}) error {
 	l.RLock()
 	entry := l.format(false, tags, time.Now(), fmt, args...)
 	app := l.appender
 	l.RUnlock()
-	app(entry)
+	return app(entry)
 }
 
 //TagDebugf prints the formatted string with the configured formatter, if debug mode is on for any of the tags
-func (l *Logger) TagDebugf(tags []string, fmt string, args ...interface{}) {
+func (l *Logger) TagDebugf(tags []string, fmt string, args ...interface{}) error {
 	l.RLock()
 	debugMode := l.debug
 	if !debugMode {
@@ -181,12 +181,12 @@ func (l *Logger) TagDebugf(tags []string, fmt string, args ...interface{}) {
 	}
 	if !debugMode {
 		l.RUnlock()
-		return
+		return nil
 	}
 	entry := l.format(true, tags, time.Now(), fmt, args...)
 	app := l.appender
 	l.RUnlock()
-	app(entry)
+	return app(entry)
 }
 
 // FullFormat includes everything
@@ -229,17 +229,20 @@ func MinimalFormat(debug bool, tags []string, t time.Time, format string, args .
 }
 
 // StdErrAppender is an appender for stderr
-func StdErrAppender(entry string) {
+func StdErrAppender(entry string) error {
 	fmt.Fprintln(os.Stderr, entry)
+	return nil
 }
 
 // StdOutAppender is an appender for stdout
-func StdOutAppender(entry string) {
+func StdOutAppender(entry string) error {
 	fmt.Fprintln(os.Stdout, entry)
+	return nil
 }
 
 // NullAppender simply ignores all append calls
-func NullAppender(entry string) {
+func NullAppender(entry string) error {
+	return nil
 }
 
 // ArrayAppender stores entries in an array for testing
@@ -247,6 +250,8 @@ type ArrayAppender struct {
 	Entries []string
 }
 
-func (a *ArrayAppender) log(entry string) {
+// Log is ArrayAppenders implementation of LogAppender
+func (a *ArrayAppender) Log(entry string) error {
 	a.Entries = append(a.Entries, entry)
+	return nil
 }

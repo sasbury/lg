@@ -1,5 +1,4 @@
-lg
-================
+# lg
 
 [![Build Status](https://travis-ci.org/sasbury/lg.svg?branch=master)](https://travis-ci.org/sasbury/lg) [![GoDoc](https://godoc.org/github.com/sasbury/lg?status.svg)](https://godoc.org/github.com/sasbury/lg)[![Go Report Card](https://goreportcard.com/badge/github.com/sasbury/lg)](https://goreportcard.com/report/github.com/sasbury/lg)
 
@@ -19,6 +18,8 @@ logger.Printf("four %s", "formatted")
 ```
 
 Loggers are thread safe. But they do not protect their appender, see below, with their lock.
+
+## Setting the Level
 
 When calling debug, the formatting will happen after a debug flag is checked so there is no price for formatting or getting the time if the debug flag is false.
 
@@ -45,6 +46,8 @@ logger.DisableDebugModeAll()
 
 Using tags for debugging does add a small price, if the global flag is true, this price is minimal, but if the global flag is false the library checks all the tags, until one is found with debugging enabled or the list is exhausted. This check is linear, scaling with the number of tags in the call and/or the debug tags.
 
+## Formatting and Appenders
+
 Loggers default to std err and the simple formatter. You can customize this with the Configure function:
 
 ```go
@@ -55,7 +58,7 @@ Custom formatters and appenders are supported:
 
 ```go
 type LogFormatter func(debug bool, tags []string, t time.Time, fmt string, args ...interface{}) string
-type LogAppender func(entry string)
+type LogAppender func(entry string) error
 ```
 
 The current release contains several formatters:
@@ -71,6 +74,8 @@ This release also includes several appenders:
 * `NullAppender` - no-op
 * `ArrayAppender` - a struct that implements LogAppender, useful for tests.
 
+## Loggers as Writers
+
 Loggers implement the Writer interface, so you can attach them to the standard logging library:
 
 ```go
@@ -81,3 +86,12 @@ stdLogger.Print("three formatted")
 ```
 
 In this situation you will want to either use the minimal formatting on the lg side, or 0 flags on the go logging side to avoid multiple headers/prefixes.
+
+## Extras
+
+The `extras` folder contains a few add-ons that aren't required but may be useful.
+
+* RollingFileAppender - logs to a file and will roll based on size, with a max count of files
+* BranchingAppender - appends to multiple child appenders
+* BadAppender - always returns an error, useful for testing
+* TestInjector - a logger based way to inject changes into production code for tests

@@ -12,7 +12,7 @@ func TestFullFormatDebugOff(t *testing.T) {
 	a := &ArrayAppender{}
 
 	logger := NewLogger()
-	logger.Configure(FullFormat, a.log)
+	logger.Configure(FullFormat, a.Log)
 
 	logger.Debugf("one %s", "formatted")
 	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
@@ -35,7 +35,7 @@ func TestFullFormatDebugOn(t *testing.T) {
 	a := &ArrayAppender{}
 
 	logger := NewLogger()
-	logger.Configure(FullFormat, a.log)
+	logger.Configure(FullFormat, a.Log)
 	logger.EnableDebugMode()
 
 	logger.Debugf("one %s", "formatted")
@@ -67,7 +67,7 @@ func TestSimpleFormatDebugOff(t *testing.T) {
 	a := &ArrayAppender{}
 
 	logger := NewLogger()
-	logger.Configure(SimpleFormat, a.log)
+	logger.Configure(SimpleFormat, a.Log)
 
 	logger.Debugf("one %s", "formatted")
 	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
@@ -90,7 +90,7 @@ func TestSimpleFormatDebugOn(t *testing.T) {
 	a := &ArrayAppender{}
 
 	logger := NewLogger()
-	logger.Configure(SimpleFormat, a.log)
+	logger.Configure(SimpleFormat, a.Log)
 	logger.EnableDebugMode()
 
 	logger.Debugf("one %s", "formatted")
@@ -122,7 +122,7 @@ func TestMinimalFormatDebugOff(t *testing.T) {
 	a := &ArrayAppender{}
 
 	logger := NewLogger()
-	logger.Configure(MinimalFormat, a.log)
+	logger.Configure(MinimalFormat, a.Log)
 
 	logger.Debugf("one %s", "formatted")
 	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
@@ -146,7 +146,7 @@ func TestMinimalFormatDebugOn(t *testing.T) {
 	a := &ArrayAppender{}
 
 	logger := NewLogger()
-	logger.Configure(MinimalFormat, a.log)
+	logger.Configure(MinimalFormat, a.Log)
 	logger.EnableDebugMode()
 
 	logger.Debugf("one %s", "formatted")
@@ -178,7 +178,7 @@ func TestDebugStatus(t *testing.T) {
 	a := &ArrayAppender{}
 
 	logger := NewLogger()
-	logger.Configure(MinimalFormat, a.log)
+	logger.Configure(MinimalFormat, a.Log)
 
 	require.False(t, logger.IsDebugMode())
 	require.False(t, logger.IsDebugModeFor("red"))
@@ -226,7 +226,7 @@ func TestDebugFlags(t *testing.T) {
 	a := &ArrayAppender{}
 
 	logger := NewLogger()
-	logger.Configure(MinimalFormat, a.log)
+	logger.Configure(MinimalFormat, a.Log)
 
 	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
 	require.Equal(t, 0, len(a.Entries))
@@ -316,7 +316,7 @@ func TestWriterImplementation(t *testing.T) {
 	a := &ArrayAppender{}
 
 	logger := NewLogger()
-	logger.Configure(FullFormat, a.log)
+	logger.Configure(FullFormat, a.Log)
 
 	l, err := logger.Write([]byte("one formatted"))
 	require.NoError(t, err)
