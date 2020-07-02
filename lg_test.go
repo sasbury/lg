@@ -4,9 +4,27 @@ import (
 	"log"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestNilAppenderForCoverage(t *testing.T) {
+	count := 0
+	logger := NewLogger()
+	logger.Configure(func(debug bool, tags []string, t time.Time, fmt string, args ...interface{}) string {
+		count++
+		return ""
+	}, nil)
+
+	logger.EnableDebugMode()
+	logger.Printf("test %s", "test")
+	logger.Debugf("test %s", "test")
+	logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
+
+	require.Equal(t, 0, count)
+}
 
 func TestFullFormatDebugOff(t *testing.T) {
 	a := &ArrayAppender{}
