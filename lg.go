@@ -259,11 +259,14 @@ func NullAppender(entry string) error {
 
 // ArrayAppender stores entries in an array for testing
 type ArrayAppender struct {
+	sync.Mutex
 	Entries []string
 }
 
 // Log is ArrayAppenders implementation of LogAppender
 func (a *ArrayAppender) Log(entry string) error {
+	a.Lock()
 	a.Entries = append(a.Entries, entry)
+	a.Unlock()
 	return nil
 }
