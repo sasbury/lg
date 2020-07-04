@@ -27,11 +27,21 @@ type LogFormatter func(debug bool, tags []string, t time.Time, fmt string, args 
 // The logger's lock will not be used protect the appender
 type LogAppender func(entry string) error
 
-// NewLogger creates and returns a new logger
+// NewLogger creates and returns a new default logger
 func NewLogger() *Logger {
 	return &Logger{
 		format:    SimpleFormat,
 		appender:  StdErrAppender,
+		debug:     false,
+		debugTags: []string{},
+	}
+}
+
+// NewLoggerWithConfig creates and returns a new logger with the specified format and appender
+func NewLoggerWithConfig(formatter LogFormatter, appender LogAppender) *Logger {
+	return &Logger{
+		format:    formatter,
+		appender:  appender,
 		debug:     false,
 		debugTags: []string{},
 	}
