@@ -2,12 +2,13 @@ package extras
 
 import (
 	"fmt"
-	"github.com/sasbury/lg"
 	"strings"
 	"sync"
+
+	"github.com/sasbury/lg"
 )
 
-// TestInjector is a log appender that tracks a map of tags to TestInjections. When a tag the test injector is discovered in
+// TestInjector is a log appender that tracks a map of patterns to TestInjections. When a patterns the test injector is discovered in
 // a log entry the TestInjection is executed and the result is returned.  This pattern can be used to inject errors into
 // test code that is normally hard to force, like causing a file not found after creating a file.
 //
@@ -78,16 +79,16 @@ func NewTestInjector(next lg.LogAppender) *TestInjector {
 }
 
 // Add a tag + TestInjection pair to the injector
-func (inj *TestInjector) Add(tag string, callback TestInjection) {
+func (inj *TestInjector) Add(pattern string, callback TestInjection) {
 	inj.Lock()
-	inj.callbacks[tag] = callback
+	inj.callbacks[pattern] = callback
 	inj.Unlock()
 }
 
 // Remove a tag + TestInjection pair to the injector
-func (inj *TestInjector) Remove(tag string) {
+func (inj *TestInjector) Remove(pattern string) {
 	inj.Lock()
-	delete(inj.callbacks, tag)
+	delete(inj.callbacks, pattern)
 	inj.Unlock()
 }
 
@@ -124,10 +125,12 @@ func (inj *TestInjector) Log(entry string) error {
 		}
 	}
 
-	err := nextLogger(entry)
+	if nextLogger != nil {
+		err := nextLogger(entry)
 
-	if err != nil {
-		errors = append(errors, err)
+		if err != nil {
+			errors = append(errors, err)
+		}
 	}
 
 	if len(errors) > 0 {
