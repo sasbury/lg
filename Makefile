@@ -1,13 +1,11 @@
 
 build: test
 
-fmt:
-	go vet ./...
-
 cover: test
 	go tool cover -html=./cover.out
 
-test: fmt
+test:
+	go vet ./...
 	rm -rf ./cover.out
 	go test -race -coverpkg=. -coverprofile=./cover.out ./...
 
