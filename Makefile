@@ -2,7 +2,6 @@
 build: test
 
 fmt:
-	gofmt -s -w *.go
 	go vet ./...
 
 cover: test
