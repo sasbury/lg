@@ -26,6 +26,22 @@ func TestNilAppenderForCoverage(t *testing.T) {
 	require.Equal(t, 0, count)
 }
 
+func TestNilLogger(t *testing.T) {
+	var logger *Logger
+
+	err := logger.Printf("test %s", "test")
+	require.NoError(t, err)
+
+	err = logger.Debugf("test %s", "test")
+	require.NoError(t, err)
+
+	err = logger.TagDebugf([]string{"red", "blue"}, "two %s", "formatted")
+	require.NoError(t, err)
+
+	err = logger.TagPrintf([]string{"red", "blue"}, "four %s", "formatted")
+	require.NoError(t, err)
+}
+
 func TestFullFormatDebugOff(t *testing.T) {
 	a := &ArrayAppender{}
 

@@ -140,7 +140,11 @@ func (l *Logger) Configure(formatter LogFormatter, appender LogAppender) {
 }
 
 //Printf used for most logging, prints the formatted string with the configured formatter
+//A nil logger will do nothing
 func (l *Logger) Printf(fmt string, args ...interface{}) error {
+	if l == nil {
+		return nil
+	}
 	l.RLock()
 	if l.appender == nil {
 		l.RUnlock()
@@ -154,6 +158,9 @@ func (l *Logger) Printf(fmt string, args ...interface{}) error {
 
 //Debugf prints the formatted string with the configured formatter, if debug is on
 func (l *Logger) Debugf(fmt string, args ...interface{}) error {
+	if l == nil {
+		return nil
+	}
 	l.RLock()
 	if !l.debug || l.appender == nil {
 		l.RUnlock()
@@ -167,6 +174,9 @@ func (l *Logger) Debugf(fmt string, args ...interface{}) error {
 
 //TagPrintf used for most logging, prints the formatted string with the configured formatter
 func (l *Logger) TagPrintf(tags []string, fmt string, args ...interface{}) error {
+	if l == nil {
+		return nil
+	}
 	l.RLock()
 	if l.appender == nil {
 		l.RUnlock()
@@ -180,6 +190,9 @@ func (l *Logger) TagPrintf(tags []string, fmt string, args ...interface{}) error
 
 //TagDebugf prints the formatted string with the configured formatter, if debug mode is on for any of the tags
 func (l *Logger) TagDebugf(tags []string, fmt string, args ...interface{}) error {
+	if l == nil {
+		return nil
+	}
 	l.RLock()
 	if l.appender == nil {
 		l.RUnlock()
